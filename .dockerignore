@@ -1,0 +1,12 @@
+.git
+
+.devcontainer/
+.vscode/
+src/test_*.py
+
+utils/__pycache__
+
+.env
+.env.sample
+
+docker-compose.yml
