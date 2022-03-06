@@ -5,13 +5,11 @@ import os
 from pathlib import Path
 import sys
 
-from google.cloud import bigquery as bq
 import pandas as pd
 import requests
 
-# Allow import from parent folder
-sys.path.insert(1, os.path.join(sys.path[0], '..'))
-from utils import find_file_with_latest_dt_in_dir
+from src.bq import replace_bq_table
+from src.date_utils import find_file_with_latest_dt_in_dir
 
 LOG_DIR = Path(os.environ['LOGS_TARGET'])
 SCROBBLE_DIR = Path(os.environ['SCROBBLE_TARGET'])
@@ -21,10 +19,10 @@ PAGE_RETRIEVE_COUNT = os.environ['PAGE_RETRIEVE_COUNT']
 LASTFM_USERNAME = os.environ['LASTFM_USERNAME']
 LASTFM_API_KEY = os.environ['LASTFM_API_KEY']
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("main")
 logger.setLevel(logging.DEBUG)
 fmtter = logging.Formatter(
-    "[%(asctime)s]; %(levelname)s; %(name)s; %(message)s", 
+    "[%(asctime)s]; %(levelname)8s; %(name)20s; %(message)s", 
     "%Y-%m-%d %H:%M:%S")
 file_handler = logging.FileHandler(LOG_DIR/"scrobble.log", encoding='utf8')
 file_handler.setFormatter(fmtter)
@@ -35,10 +33,6 @@ logger.addHandler(stdout_handler)
 
 
 logger.info("STARTED: =========================================")
-
-# Authenticate with BigQuery
-bq_client = bq.Client()
-logger.info(f"BigQuery. Successfully authenticated")
 
 pages = list(range(1, int(PAGE_RETRIEVE_COUNT)+1))
 page_ls = []
@@ -102,7 +96,6 @@ dt_formatter = lambda x : (
 new['Datetime_n'] = new['Datetime'].apply(dt_formatter)
 
 
-
 # FROM LOCAL: Load the most recent comprehensive scrobble dataset; 
 # the one where we will be adding the new scrobbles   
 fpath = find_file_with_latest_dt_in_dir(directory=SCROBBLE_DIR)
@@ -143,7 +136,7 @@ for i in range(len(new)):
 out = pd.concat([new, old], ignore_index=True)
 
 
- # SAVE SCROBBLES =========================================
+# SAVE SCROBBLES =========================================
 
 # Export to host (local)
 # Name with datetime (adjusted) of latest scrobble
@@ -161,38 +154,8 @@ with open(fpath, 'w', encoding='utf-8') as fh:
     logger.info(
         f"Scrobble: Successfully saved (n={len(out)}): {fpath}")
 
-# Replace scrobbles in BigQuery
-
-PROJECT_ID = os.environ['PROJECT_ID']
-DATASET_LATEST_ID = os.environ['DATASET_LATEST_ID']
-TABLE_SCROB_ID = os.environ['TABLE_SCROB_ID']
-
-ds_ref = bq.dataset.DatasetReference(PROJECT_ID, DATASET_LATEST_ID) 
-tbl_ref = bq.table.TableReference(ds_ref, TABLE_SCROB_ID) 
-
-fields = "Title:STRING,Artist:STRING,Album:STRING,Datetime:STRING," + \
-    "Title_c:STRING,Artist_c:STRING,Datetime_n:DATETIME"
-
-schema = [
-    bq.SchemaField(
-        name=f.split(':')[0], 
-        field_type=f.split(':')[1], 
-        mode='NULLABLE'
-    ) 
-    for f in fields.split(',')
-]
-
-# initialise table with schema using its (tbl) ref
-tbl = bq.Table(tbl_ref, schema=schema) 
-bq_client.delete_table(tbl, not_found_ok=True) # Truncate the table
-# set optional parameter exists_ok=True to ignore error of table 
-# already existing
-bq_client.create_table(tbl) 
-
-# schema in bq is DATETIME; requires this to be in pd's datetime format
-out['Datetime_n'] = pd.to_datetime(out['Datetime_n']) 
-bq_client.load_table_from_dataframe(out, tbl_ref)
-logger.info(f"load_table_from_dataframe to {tbl_ref} successful")
+# Replace scrobbles table in BigQuery
+replace_bq_table(df=out)
 
 logger.info("COMPLETED: =======================================")
 

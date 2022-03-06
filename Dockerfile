@@ -10,4 +10,4 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-CMD ["/usr/local/bin/python", "./src/tabulate_my_scrobble.py"]
+CMD ["/usr/local/bin/python", "./main.py"]

@@ -1,5 +1,6 @@
 .devcontainer/
+.env
 .vscode/
-utils/__pycache__
 
 src/test_*.py
+*__pycache__*
