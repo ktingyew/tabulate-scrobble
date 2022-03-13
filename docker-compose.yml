@@ -12,7 +12,7 @@ services:
       # last.fm variables
       - LASTFM_USERNAME=${LASTFM_USERNAME}
       - LASTFM_API_KEY=${LASTFM_API_KEY}
-      - PAGE_RETRIEVE_COUNT=2
+      - PAGE_RETRIEVE_COUNT=15
       # Bind mount targets
       - LOGS_TARGET=${LOGS_TARGET}
       - SCROBBLE_TARGET=${SCROBBLE_TARGET}

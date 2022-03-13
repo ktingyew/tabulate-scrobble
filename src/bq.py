@@ -34,7 +34,7 @@ def replace_bq_table(
 
     # Modify DateAdded type from "object" to "DateTime"
     # schema in bq is DATETIME; requires this to be in pd's datetime format
-    df['Datetime_n'] = pd.to_datetime(df['Datetime_n']) 
+    df['Datetime_n'] = pd.to_datetime(df['Datetime_n'], format="%Y-%m-%d %H:%M:%S") 
 
     bq_client.load_table_from_dataframe(
         dataframe=df, 
